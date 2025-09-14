@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dots & Boxes — Playable</title>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#111827; --muted:#9aa4b2; --accent:#06b6d4; --accent-2:#7c3aed;
+      --player1:#06b6d4; --player2:#7c3aed; --dot:#e6eef6;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,'Helvetica Neue',Arial;background:linear-gradient(180deg,#071027 0%, #071229 60%);color:var(--dot);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
+    .app{width:100%;max-width:1100px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:56px;height:56px;background:linear-gradient(135deg,var(--accent),var(--accent-2));border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:700;color:white;font-size:22px;box-shadow:0 6px 20px rgba(12,22,44,0.6)}
+    h1{margin:0;font-size:20px}
+    .controls{display:flex;gap:12px;align-items:center}
+    .card{background:rgba(255,255,255,0.03);padding:12px 14px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,0.6);}
+    label{font-size:13px;color:var(--muted);display:block}
+    select,input[type=range]{background:transparent;border:0;color:var(--dot)}
+    button{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:0;color:white;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+    main{display:flex;gap:18px}
+    .left{flex:1;display:flex;flex-direction:column;gap:14px}
+    .board-wrap{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:18px;border-radius:14px;display:flex;flex-direction:column;align-items:center}
+    #board{background:transparent;border-radius:10px;display:block}
+    .info{display:flex;gap:12px;align-items:center}
+    .score{display:flex;gap:10px;align-items:center}
+    .p{display:flex;flex-direction:column;align-items:center;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,0.02)}
+    .dot{width:10px;height:10px;border-radius:50%}
+    .turn{font-size:14px;color:var(--muted)}
+    .right{width:320px}
+    .panel{background:rgba(255,255,255,0.02);padding:14px;border-radius:12px}
+    .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .muted{color:var(--muted);font-size:13px}
+    footer{margin-top:12px;color:var(--muted);font-size:13px;text-align:center}
+    /* Mobile tweaks */
+    @media (max-width:900px){main{flex-direction:column}.right{width:100%}}
+
+    /* Popup modal */
+    #popup {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+    #popup .content {
+      background: var(--card);
+      padding: 24px;
+      border-radius: 14px;
+      text-align: center;
+      color: var(--dot);
+      max-width: 300px;
+      width: 90%;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    }
+    #popup h2 {
+      margin: 0 0 12px;
+    }
+    #popup button {
+      margin-top: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">DB</div>
+        <div>
+          <h1>Dots & Boxes</h1>
+          <div class="muted">Classic game — make boxes to score</div>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="card">
+          <label>Grid size: <span id="sizeLabel">4</span>×<span id="sizeLabel2">4</span></label>
+          <input id="gridRange" type="range" min="2" max="8" value="4" />
+        </div>
+        <div class="card">
+          <label>Play mode</label>
+          <select id="modeSelect">
+            <option value="local">Local (2 players)</option>
+            <option value="ai">Play vs Simple AI</option>
+          </select>
+        </div>
+        <button id="restartBtn">Restart</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="left">
+        <div class="board-wrap card">
+          <div class="info" style="width:100%;justify-content:space-between;margin-bottom:8px">
+            <div class="score">
+              <div class="p"><div style="display:flex;gap:8px;align-items:center"><div class="dot" style="background:var(--player1)"></div><strong id="p1Name">Player 1</strong></div><div class="muted">Score <span id="p1Score">0</span></div></div>
+              <div class="p"><div style="display:flex;gap:8px;align-items:center"><div class="dot" style="background:var(--player2)"></div><strong id="p2Name">Player 2</strong></div><div class="muted">Score <span id="p2Score">0</span></div></div>
+            </div>
+            <div style="text-align:right">
+              <div class="turn">Turn: <strong id="turnIndicator">Player 1</strong></div>
+              <div class="muted">Moves left: <span id="movesLeft">0</span></div>
+            </div>
+          </div>
+
+          <canvas id="board" width="720" height="720" aria-label="Dots and Boxes board"></canvas>
+        </div>
+        <footer class="muted">Click between two dots to draw a line. Complete a box to claim it and get an extra turn.</footer>
+      </div>
+
+      <aside class="right">
+        <div class="panel card">
+          <div class="row"><div class="muted">Grid</div><div id="gridText">4 × 4</div></div>
+          <div class="row"><div class="muted">Mode</div><div id="modeText">Local</div></div>
+          <hr style="opacity:0.06;margin:12px 0" />
+          <div style="margin-bottom:8px"><strong>How to play</strong></div>
+          <div class="muted" style="font-size:13px">Players take turns drawing lines between adjacent dots. When a player closes the 4th side of a box, they claim it and score 1 point and play again. The player with more boxes wins.</div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Popup Modal -->
+  <div id="popup">
+    <div class="content">
+      <h2 id="popupTitle">Player Wins!</h2>
+      <p id="popupScore">Score — P1: 0  P2: 0</p>
+      <button onclick="closePopup()">OK</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+    const gridRange = document.getElementById('gridRange');
+    const sizeLabel = document.getElementById('sizeLabel');
+    const sizeLabel2 = document.getElementById('sizeLabel2');
+    const modeSelect = document.getElementById('modeSelect');
+    const restartBtn = document.getElementById('restartBtn');
+    const turnIndicator = document.getElementById('turnIndicator');
+    const p1ScoreEl = document.getElementById('p1Score');
+    const p2ScoreEl = document.getElementById('p2Score');
+    const movesLeftEl = document.getElementById('movesLeft');
+    const gridText = document.getElementById('gridText');
+    const modeText = document.getElementById('modeText');
+
+    // State
+    let n = parseInt(gridRange.value);
+    let w = canvas.width, h = canvas.height;
+    let padding = 48;
+    let dotRadius = 6;
+    let cellSize;
+    let lines = {};
+    let boxes = {};
+    let currentPlayer = 1;
+    let scores = {1:0,2:0};
+    let totalBoxes = 0;
+
+    function reset(newN){
+      n = newN || n;
+      sizeLabel.textContent = n;
+      sizeLabel2.textContent = n;
+      gridText.textContent = `${n} × ${n}`;
+      modeText.textContent = modeSelect.value === 'ai' ? 'Vs AI' : 'Local';
+      lines = {};
+      boxes = {};
+      scores = {1:0,2:0};
+      currentPlayer = 1;
+      totalBoxes = (n-1)*(n-1);
+      p1ScoreEl.textContent = '0'; p2ScoreEl.textContent = '0';
+      turnIndicator.textContent = currentPlayer ===1 ? 'Player 1' : (modeSelect.value==='ai' ? 'AI' : 'Player 2');
+      movesLeftEl.textContent = Object.keys(lines).length + ' / ' + ((n*(n-1))*2);
+      resizeCanvas();
+      draw();
+    }
+
+    function resizeCanvas(){
+      const size = Math.min(window.innerWidth*0.7, 720);
+      canvas.width = size;
+      canvas.height = size;
+      w = canvas.width; h = canvas.height;
+      cellSize = (w - padding*2) / (n-1);
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,w,h);
+      ctx.fillStyle = 'rgba(255,255,255,0.02)';
+      ctx.fillRect(0,0,w,h);
+
+      for(let r=0;r<n-1;r++){
+        for(let c=0;c<n-1;c++){
+          const key = `${r}-${c}`;
+          if(boxes[key]){
+            ctx.fillStyle = boxes[key] ===1 ? 'rgba(6,182,212,0.15)' : 'rgba(124,58,237,0.15)';
+            ctx.fillRect(padding + c*cellSize + 6, padding + r*cellSize + 6, cellSize-12, cellSize-12);
+            ctx.fillStyle = boxes[key]===1 ? 'rgba(6,182,212,0.9)' : 'rgba(124,58,237,0.9)';
+            ctx.font = `${Math.max(12,cellSize*0.14)}px Inter, system-ui`;
+            ctx.textAlign = 'center'; ctx.textBaseline='middle';
+            ctx.fillText(boxes[key]===1 ? 'P1' : 'P2', padding + (c+0.5)*cellSize, padding + (r+0.5)*cellSize);
+          }
+        }
+      }
+
+      for(const k in lines){
+        const [r,c,dir] = k.split('-').map((v,i)=> i<2?parseInt(v):v);
+        const x = padding + c*cellSize;
+        const y = padding + r*cellSize;
+        ctx.lineWidth = Math.max(4, cellSize*0.06);
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = lines[k] === 1 ? getComputedStyle(document.documentElement).getPropertyValue('--player1').trim() : getComputedStyle(document.documentElement).getPropertyValue('--player2').trim();
+        ctx.beginPath();
+        if(dir === 'h'){ ctx.moveTo(x, y); ctx.lineTo(x+cellSize, y); }
+        else { ctx.moveTo(x, y); ctx.lineTo(x, y+cellSize); }
+        ctx.stroke();
+      }
+
+      for(let r=0;r<n;r++){
+        for(let c=0;c<n;c++){
+          const x = padding + c*cellSize;
+          const y = padding + r*cellSize;
+          ctx.beginPath();
+          ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--dot').trim() || '#e6eef6';
+          ctx.arc(x,y,dotRadius,0,Math.PI*2);
+          ctx.fill();
+          ctx.closePath();
+        }
+      }
+    }
+
+    function coordFromMouse(evt){
+      const rect = canvas.getBoundingClientRect();
+      const mx = evt.clientX - rect.left;
+      const my = evt.clientY - rect.top;
+      let closest = null; let minDist = Infinity;
+      for(let r=0;r<n;r++){
+        for(let c=0;c<n;c++){
+          const x = padding + c*cellSize;
+          const y = padding + r*cellSize;
+          if(c < n-1){
+            const d = pointSegmentDistance(mx,my,x,y,x+cellSize,y);
+            if(d < minDist){ minDist=d; closest={r,c,dir:'h'} }
+          }
+          if(r < n-1){
+            const d = pointSegmentDistance(mx,my,x,y,x,y+cellSize);
+            if(d < minDist){ minDist=d; closest={r,c,dir:'v'} }
+          }
+        }
+      }
+      if(minDist <= Math.max(12, cellSize*0.12)) return closest;
+      return null;
+    }
+
+    function pointSegmentDistance(px,py,x1,y1,x2,y2){
+      const A = px - x1; const B = py - y1; const C = x2 - x1; const D = y2 - y1;
+      const dot = A*C + B*D; const len_sq = C*C + D*D;
+      let param = -1;
+      if(len_sq!==0) param = dot / len_sq;
+      let xx, yy;
+      if(param < 0){ xx = x1; yy = y1; }
+      else if(param > 1){ xx = x2; yy = y2; }
+      else { xx = x1 + param * C; yy = y1 + param * D; }
+      const dx = px - xx; const dy = py - yy; return Math.sqrt(dx*dx + dy*dy);
+    }
+
+    canvas.addEventListener('pointerdown', (e)=>{
+      const seg = coordFromMouse(e);
+      if(!seg) return;
+      const key = `${seg.r}-${seg.c}-${seg.dir}`;
+      if(lines[key]) return;
+
+      lines[key] = currentPlayer;
+      let gotBox = false;
+      const adj = adjacentBoxesForSegment(seg.r, seg.c, seg.dir);
+      adj.forEach(box => {
+        const bkey = `${box.r}-${box.c}`;
+        if(!boxes[bkey] && isBoxClosed(box.r,box.c)){
+          boxes[bkey] = currentPlayer;
+          scores[currentPlayer]++;
+          gotBox = true;
+        }
+      });
+
+      if(!gotBox){ currentPlayer = currentPlayer ===1 ? 2 : 1; }
+
+      updateUI();
+      draw();
+
+      if(modeSelect.value === 'ai' && currentPlayer === 2){ setTimeout(aiMove, 200); }
+
+      if(Object.keys(boxes).length === totalBoxes){
+        setTimeout(()=>{
+          const result = scores[1] === scores[2] ? 'Draw' : (scores[1] > scores[2] ? 'Player 1 wins' : (modeSelect.value==='ai' && scores[2]>scores[1] ? 'AI wins' : 'Player 2 wins'));
+          showPopup(result, `Score — P1: ${scores[1]}  P2: ${scores[2]}`);
+        },100);
+      }
+    });
+
+    function updateUI(){
+      p1ScoreEl.textContent = scores[1];
+      p2ScoreEl.textContent = scores[2];
+      turnIndicator.textContent = currentPlayer===1? 'Player 1' : (modeSelect.value==='ai'? 'AI' : 'Player 2');
+      movesLeftEl.textContent = Object.keys(lines).length + ' / ' + ((n*(n-1))*2);
+    }
+
+    function adjacentBoxesForSegment(r,c,dir){
+      const arr = [];
+      if(dir==='h'){ if(r>0) arr.push({r:r-1,c:c}); if(r < n-1) arr.push({r:r,c:c}); }
+      else { if(c>0) arr.push({r:r,c:c-1}); if(c < n-1) arr.push({r:r,c:c}); }
+      return arr.filter(b=> b.r>=0 && b.c>=0 && b.r < n-1 && b.c < n-1);
+    }
+
+    function isBoxClosed(r,c){
+      const top = `${r}-${c}-h`; const bottom = `${r+1}-${c}-h`; const left = `${r}-${c}-v`; const right = `${r}-${c+1}-v`;
+      return !!lines[top] && !!lines[bottom] && !!lines[left] && !!lines[right];
+    }
+
+    function aiMove(){
+      for(const seg of potentialSegments()){
+        const key = `${seg.r}-${seg.c}-${seg.dir}`;
+        lines[key] = 2;
+        let willGet = false;
+        const adj = adjacentBoxesForSegment(seg.r,seg.c,seg.dir);
+        adj.forEach(b=>{ if(!boxes[`${b.r}-${b.c}`] && isBoxClosed(b.r,b.c)){ boxes[`${b.r}-${b.c}`] = 2; scores[2]++; willGet=true;} });
+        if(willGet){ updateUI(); draw(); setTimeout(aiMove, 300); return; }
+        delete lines[key];
+      }
+      const free = potentialSegments();
+      if(free.length>0){
+        const seg = free[Math.floor(Math.random()*free.length)];
+        const key = `${seg.r}-${seg.c}-${seg.dir}`;
+        lines[key] = 2;
+        let gotBox = false;
+        const adj = adjacentBoxesForSegment(seg.r,seg.c,seg.dir);
+        adj.forEach(b=>{ if(!boxes[`${b.r}-${b.c}`] && isBoxClosed(b.r,b.c)){ boxes[`${b.r}-${b.c}`]=2; scores[2]++; gotBox=true;} });
+        if(!gotBox) currentPlayer = 1;
+        updateUI(); draw();
+      }
+    }
+
+    function potentialSegments(){
+      const arr = [];
+      for(let r=0;r<n;r++){
+        for(let c=0;c<n;c++){
+          if(c < n-1 && !lines[`${r}-${c}-h`]) arr.push({r,c,dir:'h'});
+          if(r < n-1 && !lines[`${r}-${c}-v`]) arr.push({r,c,dir:'v'});
+        }
+      }
+      return arr;
+    }
+
+    gridRange.addEventListener('input', (e)=>{ reset(parseInt(e.target.value)); });
+    modeSelect.addEventListener('change', ()=> reset(n));
+    restartBtn.addEventListener('click', ()=> reset(n));
+    window.addEventListener('resize', ()=>{ resizeCanvas(); draw(); });
+
+    reset(n);
+
+    // Popup functions
+    function showPopup(title, scoreText){
+      document.getElementById('popupTitle').textContent = title;
+      document.getElementById('popupScore').textContent = scoreText;
+      document.getElementById('popup').style.display = 'flex';
+    }
+    function closePopup(){
+      document.getElementById('popup').style.display = 'none';
+      reset(n); // restart game on close
+    }
+  </script>
+</body>
+</html>
